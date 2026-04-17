@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 
-import 'pages/basic_demo_page.dart';
-import 'pages/data_binding_page.dart';
-import 'pages/live_editor_page.dart';
+import 'package:rfw_sample/pages/basic_demo_page.dart';
+import 'package:rfw_sample/pages/data_binding_page.dart';
+import 'package:rfw_sample/pages/live_editor_page.dart';
 
 const _appTitle = 'RFW Sample';
 

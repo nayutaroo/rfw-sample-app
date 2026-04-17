@@ -1,0 +1,53 @@
+import core.widgets;
+import material.widgets;
+
+widget root = Card(
+  elevation: 2.0,
+  child: Column(
+    mainAxisSize: "min",
+    crossAxisAlignment: "start",
+    children: [
+      Container(
+        color: 0xFFE3F2FD,
+        child: Padding(
+          padding: {left: 16.0, top: 24.0, right: 16.0, bottom: 24.0},
+          child: Row(
+            mainAxisAlignment: "spaceBetween",
+            children: [
+              Icon(icon: 0xe1bc, size: 64.0, color: 0xFF1565C0),
+              Column(
+                crossAxisAlignment: "end",
+                children: [
+                  Text(text: data.badge),
+                  SizedBox(height: 4.0),
+                  Text(text: ["評価: ", data.rating]),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      Padding(
+        padding: {left: 16.0, top: 12.0, right: 16.0, bottom: 4.0},
+        child: Text(text: data.name),
+      ),
+      Padding(
+        padding: {left: 16.0, top: 0.0, right: 16.0, bottom: 4.0},
+        child: Text(text: data.brand),
+      ),
+      Padding(
+        padding: {left: 16.0, top: 0.0, right: 16.0, bottom: 16.0},
+        child: Row(
+          mainAxisAlignment: "spaceBetween",
+          children: [
+            Text(text: ["¥", data.price]),
+            ElevatedButton(
+              onPressed: event "add_to_cart" {productId: data.id},
+              child: Text(text: "カートに追加"),
+            ),
+          ],
+        ),
+      ),
+    ],
+  ),
+);

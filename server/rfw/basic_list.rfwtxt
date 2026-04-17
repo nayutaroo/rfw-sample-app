@@ -1,0 +1,27 @@
+import core.widgets;
+import material.widgets;
+
+widget root = Column(
+  children: [
+    ListTile(
+      leading: Icon(icon: 0xe318),
+      title: Text(text: "設定"),
+      trailing: Icon(icon: 0xe5c8),
+      onTap: event "item_tapped" {index: 0},
+    ),
+    Divider(),
+    ListTile(
+      leading: Icon(icon: 0xe7fd),
+      title: Text(text: "プロフィール"),
+      trailing: Icon(icon: 0xe5c8),
+      onTap: event "item_tapped" {index: 1},
+    ),
+    Divider(),
+    ListTile(
+      leading: Icon(icon: 0xe0c9),
+      title: Text(text: "通知"),
+      trailing: Icon(icon: 0xe5c8),
+      onTap: event "item_tapped" {index: 2},
+    ),
+  ],
+);

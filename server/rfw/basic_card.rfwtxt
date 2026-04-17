@@ -1,0 +1,22 @@
+import core.widgets;
+import material.widgets;
+
+widget root = Card(
+  elevation: 4.0,
+  child: Padding(
+    padding: {left: 20.0, top: 20.0, right: 20.0, bottom: 20.0},
+    child: Column(
+      mainAxisSize: "min",
+      children: [
+        Icon(icon: 0xe047, size: 48.0, color: 0xFF9C27B0),
+        SizedBox(height: 18.0),
+        Text(text: "RFW で描画されたカード", textAlign: "center"),
+        SizedBox(height: 8.0),
+        Text(
+          text: "このウィジェットはサーバーから取得したバイナリ定義で動いています",
+          textAlign: "center",
+        ),
+      ],
+    ),
+  ),
+);

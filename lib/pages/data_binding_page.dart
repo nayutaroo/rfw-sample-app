@@ -1,103 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:rfw/formats.dart' show parseLibraryFile;
 import 'package:rfw/rfw.dart';
+import 'package:rfw_sample/config/server_config.dart';
+import 'package:rfw_sample/server/rfw_client.dart';
 
 const _pageTitle = 'Data Binding';
 const _sectionTitle = '同じ RFW 定義、異なるデータ';
-const _sectionSubtitle = 'DynamicContent を差し替えるとウィジェットが自動更新されます';
+const _sectionSubtitle = 'ウィジェット定義・データともにサーバーから取得しています';
 const _switchSectionLabel = '商品を切り替える';
 const _addToCartEvent = 'add_to_cart';
 const _cartAddedSuffix = ' をカートに追加しました';
-
-const _productCardRfw = '''
-import core.widgets;
-import material.widgets;
-
-widget root = Card(
-  elevation: 2.0,
-  child: Column(
-    mainAxisSize: "min",
-    crossAxisAlignment: "start",
-    children: [
-      Container(
-        color: 0xFFE3F2FD,
-        child: Padding(
-          padding: {left: 16.0, top: 24.0, right: 16.0, bottom: 24.0},
-          child: Row(
-            mainAxisAlignment: "spaceBetween",
-            children: [
-              Icon(icon: 0xe1bc, size: 64.0, color: 0xFF1565C0),
-              Column(
-                crossAxisAlignment: "end",
-                children: [
-                  Text(text: data.badge),
-                  SizedBox(height: 4.0),
-                  Text(text: ["評価: ", data.rating]),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      Padding(
-        padding: {left: 16.0, top: 12.0, right: 16.0, bottom: 4.0},
-        child: Text(text: data.name),
-      ),
-      Padding(
-        padding: {left: 16.0, top: 0.0, right: 16.0, bottom: 4.0},
-        child: Text(text: data.brand),
-      ),
-      Padding(
-        padding: {left: 16.0, top: 0.0, right: 16.0, bottom: 16.0},
-        child: Row(
-          mainAxisAlignment: "spaceBetween",
-          children: [
-            Text(text: ["¥", data.price]),
-            ElevatedButton(
-              onPressed: event "add_to_cart" {productId: data.id},
-              child: Text(text: "カートに追加"),
-            ),
-          ],
-        ),
-      ),
-    ],
-  ),
-);
-''';
-
-const _products = <Map<String, String>>[
-  {
-    'id': 'p001',
-    'name': 'モイスチャライジングクリーム',
-    'brand': 'スキンケアブランドA',
-    'price': '3,200',
-    'rating': '★★★★☆',
-    'badge': 'ベストセラー',
-  },
-  {
-    'id': 'p002',
-    'name': 'ビタミンCセラム',
-    'brand': 'スキンケアブランドB',
-    'price': '5,800',
-    'rating': '★★★★★',
-    'badge': '新商品',
-  },
-  {
-    'id': 'p003',
-    'name': 'サンスクリーンSPF50',
-    'brand': 'スキンケアブランドC',
-    'price': '2,500',
-    'rating': '★★★☆☆',
-    'badge': 'セール中',
-  },
-];
+const _retryLabel = '再試行';
+const _widgetSource = 'product_card';
 
 Runtime _buildRuntime() {
   final runtime = Runtime();
   runtime.update(const LibraryName(['core', 'widgets']), createCoreWidgets());
   runtime.update(const LibraryName(['material', 'widgets']), createMaterialWidgets());
-  runtime.update(const LibraryName(['main']), parseLibraryFile(_productCardRfw));
   return runtime;
 }
 
@@ -110,11 +29,74 @@ class DataBindingPage extends HookWidget {
     final data = useMemoized(() => DynamicContent());
     final currentIndex = useState(0);
     final cartMessage = useState<String?>(null);
+    final retryCount = useState(0);
+
+    final widgetFuture = useMemoized(
+      () => RfwClient.fetchWidget(_widgetSource),
+      [retryCount.value],
+    );
+    final productsFuture = useMemoized(
+      () => RfwClient.fetchProducts(),
+      [retryCount.value],
+    );
+
+    final widgetSnapshot = useFuture(widgetFuture);
+    final productsSnapshot = useFuture(productsFuture);
 
     useEffect(() {
-      data.updateAll(Map<String, Object>.from(_products[currentIndex.value]));
+      if (widgetSnapshot.data case final library?) {
+        runtime.update(const LibraryName(['main']), library);
+      }
       return null;
-    }, [currentIndex.value]);
+    }, [widgetSnapshot.data]);
+
+    useEffect(() {
+      if (productsSnapshot.data case final products?) {
+        if (currentIndex.value < products.length) {
+          data.updateAll(Map<String, Object>.from(products[currentIndex.value]));
+        }
+      }
+      return null;
+    }, [productsSnapshot.data, currentIndex.value]);
+
+    final isLoading = widgetSnapshot.connectionState == ConnectionState.waiting ||
+        productsSnapshot.connectionState == ConnectionState.waiting;
+
+    final error = widgetSnapshot.error ?? productsSnapshot.error;
+
+    if (error != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text(_pageTitle),
+          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.cloud_off, size: 48, color: Theme.of(context).colorScheme.error),
+                const SizedBox(height: 12),
+                Text(error.toString(), textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () => retryCount.value++,
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text(_retryLabel),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final products = productsSnapshot.data ?? const [];
 
     return Scaffold(
       appBar: AppBar(
@@ -129,14 +111,16 @@ class DataBindingPage extends HookWidget {
             Text(_sectionTitle, style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 4),
             Text(_sectionSubtitle, style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 16),
+            const SizedBox(height: 4),
+            _SourceRow(widgetName: _widgetSource),
+            const SizedBox(height: 12),
             RemoteWidget(
               runtime: runtime,
               widget: const FullyQualifiedWidgetName(LibraryName(['main']), 'root'),
               data: data,
               onEvent: (name, args) {
-                if (name == _addToCartEvent) {
-                  final productName = _products[currentIndex.value]['name'] ?? '';
+                if (name == _addToCartEvent && currentIndex.value < products.length) {
+                  final productName = products[currentIndex.value]['name'] ?? '';
                   cartMessage.value = '$productName$_cartAddedSuffix';
                 }
               },
@@ -146,9 +130,9 @@ class DataBindingPage extends HookWidget {
             const SizedBox(height: 16),
             Text(_switchSectionLabel, style: Theme.of(context).textTheme.labelLarge),
             const SizedBox(height: 8),
-            for (int i = 0; i < _products.length; i++)
+            for (int i = 0; i < products.length; i++)
               _ProductTile(
-                product: _products[i],
+                product: products[i],
                 isSelected: currentIndex.value == i,
                 onTap: () {
                   currentIndex.value = i;
@@ -158,6 +142,41 @@ class DataBindingPage extends HookWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SourceRow extends StatelessWidget {
+  const _SourceRow({required this.widgetName});
+  final String widgetName;
+
+  @override
+  Widget build(BuildContext context) {
+    final widgetUrl = '${ServerConfig.baseUrl}/widgets/$widgetName';
+    final dataUrl = '${ServerConfig.baseUrl}/data/products';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _UrlChip(url: widgetUrl),
+        const SizedBox(height: 2),
+        _UrlChip(url: dataUrl),
+      ],
+    );
+  }
+}
+
+class _UrlChip extends StatelessWidget {
+  const _UrlChip({required this.url});
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(Icons.cloud_download_outlined, size: 14, color: Theme.of(context).colorScheme.outline),
+        const SizedBox(width: 4),
+        Text(url, style: Theme.of(context).textTheme.labelSmall),
+      ],
     );
   }
 }

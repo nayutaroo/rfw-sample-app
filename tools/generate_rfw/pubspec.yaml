@@ -1,0 +1,6 @@
+name: generate_rfw
+publish_to: none
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+dependencies:
+  rfw: ^1.1.3

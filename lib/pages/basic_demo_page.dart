@@ -1,100 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:rfw/formats.dart' show parseLibraryFile;
 import 'package:rfw/rfw.dart';
+import 'package:rfw_sample/config/server_config.dart';
+import 'package:rfw_sample/server/rfw_client.dart';
 
 const _pageTitle = 'Basic Demo';
-const _sectionTitle = 'RFW テキスト定義からウィジェットをレンダリング';
+const _sectionTitle = 'サーバーから取得した RFW バイナリをレンダリング';
 const _eventReceivedPrefix = 'イベント受信: ';
-const _showDefinitionLabel = 'RFW 定義を表示';
+const _retryLabel = '再試行';
 
 const _definitions = [
-  (
-    label: 'カード',
-    rfw: '''
-import core.widgets;
-import material.widgets;
-
-widget root = Card(
-  elevation: 4.0,
-  child: Padding(
-    padding: {left: 20.0, top: 20.0, right: 20.0, bottom: 20.0},
-    child: Column(
-      mainAxisSize: "min",
-      children: [
-        Icon(icon: 0xe047, size: 48.0, color: 0xFF9C27B0),
-        SizedBox(height: 12.0),
-        Text(text: "RFW で描画されたカード", textAlign: "center"),
-        SizedBox(height: 8.0),
-        Text(
-          text: "このウィジェットはテキスト形式の定義から動的に生成されています",
-          textAlign: "center",
-        ),
-      ],
-    ),
-  ),
-);
-''',
-  ),
-  (
-    label: 'バナー',
-    rfw: '''
-import core.widgets;
-import material.widgets;
-
-widget root = Container(
-  color: 0xFF1565C0,
-  child: Padding(
-    padding: {left: 24.0, top: 32.0, right: 24.0, bottom: 32.0},
-    child: Column(
-      crossAxisAlignment: "start",
-      children: [
-        Text(text: "NEW ARRIVAL"),
-        SizedBox(height: 8.0),
-        Text(text: "プロモーションバナー"),
-        SizedBox(height: 16.0),
-        ElevatedButton(
-          onPressed: event "banner_tapped" {},
-          child: Text(text: "詳細を見る"),
-        ),
-      ],
-    ),
-  ),
-);
-''',
-  ),
-  (
-    label: 'リスト',
-    rfw: '''
-import core.widgets;
-import material.widgets;
-
-widget root = Column(
-  children: [
-    ListTile(
-      leading: Icon(icon: 0xe318),
-      title: Text(text: "設定"),
-      trailing: Icon(icon: 0xe5c8),
-      onTap: event "item_tapped" {index: 0},
-    ),
-    Divider(),
-    ListTile(
-      leading: Icon(icon: 0xe7fd),
-      title: Text(text: "プロフィール"),
-      trailing: Icon(icon: 0xe5c8),
-      onTap: event "item_tapped" {index: 1},
-    ),
-    Divider(),
-    ListTile(
-      leading: Icon(icon: 0xe0c9),
-      title: Text(text: "通知"),
-      trailing: Icon(icon: 0xe5c8),
-      onTap: event "item_tapped" {index: 2},
-    ),
-  ],
-);
-''',
-  ),
+  (label: 'カード', widgetName: 'basic_card'),
+  (label: 'バナー', widgetName: 'basic_banner'),
+  (label: 'リスト', widgetName: 'basic_list'),
 ];
 
 Runtime _buildRuntime() {
@@ -113,14 +31,22 @@ class BasicDemoPage extends HookWidget {
     final data = useMemoized(() => DynamicContent());
     final selectedIndex = useState(0);
     final lastEvent = useState<String?>(null);
+    final retryCount = useState(0);
+
+    final widgetName = _definitions[selectedIndex.value].widgetName;
+
+    final widgetFuture = useMemoized(
+      () => RfwClient.fetchWidget(widgetName),
+      [widgetName, retryCount.value],
+    );
+    final widgetSnapshot = useFuture(widgetFuture);
 
     useEffect(() {
-      runtime.update(
-        const LibraryName(['main']),
-        parseLibraryFile(_definitions[selectedIndex.value].rfw),
-      );
+      if (widgetSnapshot.data case final library?) {
+        runtime.update(const LibraryName(['main']), library);
+      }
       return null;
-    }, [selectedIndex.value]);
+    }, [widgetSnapshot.data]);
 
     return Scaffold(
       appBar: AppBar(
@@ -158,60 +84,76 @@ class BasicDemoPage extends HookWidget {
               child: Text('$_eventReceivedPrefix$event'),
             ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: RemoteWidget(
-                runtime: runtime,
-                widget: const FullyQualifiedWidgetName(LibraryName(['main']), 'root'),
-                data: data,
-                onEvent: (name, args) => lastEvent.value = '$name $args',
-              ),
-            ),
+            child: switch (widgetSnapshot) {
+              AsyncSnapshot(hasError: true, :final error?) => _ErrorBody(
+                  message: error.toString(),
+                  onRetry: () => retryCount.value++,
+                ),
+              AsyncSnapshot(connectionState: ConnectionState.waiting, data: null) =>
+                const Center(child: CircularProgressIndicator()),
+              _ => Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: RemoteWidget(
+                    runtime: runtime,
+                    widget: const FullyQualifiedWidgetName(LibraryName(['main']), 'root'),
+                    data: data,
+                    onEvent: (name, args) => lastEvent.value = '$name $args',
+                  ),
+                ),
+            },
           ),
-          _DefinitionPanel(rfw: _definitions[selectedIndex.value].rfw),
+          _SourceLabel(widgetName: widgetName),
         ],
       ),
     );
   }
 }
 
-class _DefinitionPanel extends HookWidget {
-  const _DefinitionPanel({required this.rfw});
-  final String rfw;
+class _SourceLabel extends StatelessWidget {
+  const _SourceLabel({required this.widgetName});
+  final String widgetName;
 
   @override
   Widget build(BuildContext context) {
-    final expanded = useState(false);
+    final url = '${ServerConfig.baseUrl}/widgets/$widgetName';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_download_outlined, size: 14, color: Theme.of(context).colorScheme.outline),
+          const SizedBox(width: 4),
+          Text(url, style: Theme.of(context).textTheme.labelSmall),
+        ],
+      ),
+    );
+  }
+}
 
-    return Column(
-      children: [
-        InkWell(
-          onTap: () => expanded.value = !expanded.value,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Text(_showDefinitionLabel, style: Theme.of(context).textTheme.labelMedium),
-                const Spacer(),
-                Icon(expanded.value ? Icons.expand_more : Icons.expand_less, size: 16),
-              ],
+class _ErrorBody extends StatelessWidget {
+  const _ErrorBody({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off, size: 48, color: Theme.of(context).colorScheme.error),
+            const SizedBox(height: 12),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text(_retryLabel),
             ),
-          ),
+          ],
         ),
-        if (expanded.value)
-          Container(
-            width: double.infinity,
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            padding: const EdgeInsets.all(12),
-            constraints: const BoxConstraints(maxHeight: 200),
-            child: SingleChildScrollView(
-              child: Text(
-                rfw,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
-              ),
-            ),
-          ),
-      ],
+      ),
     );
   }
 }

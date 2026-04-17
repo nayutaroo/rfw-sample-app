@@ -1,5 +1,6 @@
 [tools]
 flutter = "3.41.5-stable"
+go = "1.25.8"
 
 [tasks.install]
 description = "依存パッケージをインストール"
@@ -28,3 +29,15 @@ run = "flutter build ios --release"
 [tasks.build-android]
 description = "Android向けにビルド"
 run = "flutter build apk --release"
+
+[tasks."generate:rfw"]
+description = ".rfwtxt をバイナリ .rfw に変換"
+run = "cd tools/generate_rfw && dart pub get && dart run bin/generate_rfw.dart"
+
+[tasks."server:run"]
+description = "Go サーバーを起動 (ポート 8080)"
+run = "cd server && go run ."
+
+[tasks."server:build"]
+description = "Go サーバーをビルド"
+run = "cd server && go build -o bin/server ."
