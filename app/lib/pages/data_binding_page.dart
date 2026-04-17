@@ -5,13 +5,11 @@ import 'package:rfw_sample/config/server_config.dart';
 import 'package:rfw_sample/server/rfw_client.dart';
 
 const _pageTitle = 'Data Binding';
-const _sectionTitle = '同じ RFW 定義、異なるデータ';
-const _sectionSubtitle = 'ウィジェット定義・データともにサーバーから取得しています';
-const _switchSectionLabel = '商品を切り替える';
+const _screenName = 'product';
 const _addToCartEvent = 'add_to_cart';
 const _cartAddedSuffix = ' をカートに追加しました';
+const _refetchLabel = 'サーバーに再取得';
 const _retryLabel = '再試行';
-const _widgetSource = 'product_card';
 
 Runtime _buildRuntime() {
   final runtime = Runtime();
@@ -26,154 +24,150 @@ class DataBindingPage extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final runtime = useMemoized(_buildRuntime);
-    final data = useMemoized(() => DynamicContent());
-    final currentIndex = useState(0);
+    final dynamicContent = useMemoized(() => DynamicContent());
+    final fetchCount = useState(0);
     final cartMessage = useState<String?>(null);
-    final retryCount = useState(0);
 
-    final widgetFuture = useMemoized(
-      () => RfwClient.fetchWidget(_widgetSource),
-      [retryCount.value],
+    // fetchCount が変わるたびにサーバーへ問い合わせ、
+    // サーバーがそのタイミングで選んだバリアント（ウィジェット定義＋データ）を返す
+    final screenFuture = useMemoized(
+      () => RfwClient.fetchScreen(_screenName),
+      [fetchCount.value],
     );
-    final productsFuture = useMemoized(
-      () => RfwClient.fetchProducts(),
-      [retryCount.value],
-    );
-
-    final widgetSnapshot = useFuture(widgetFuture);
-    final productsSnapshot = useFuture(productsFuture);
+    final screenSnapshot = useFuture(screenFuture);
 
     useEffect(() {
-      if (widgetSnapshot.data case final library?) {
-        runtime.update(const LibraryName(['main']), library);
+      if (screenSnapshot.data case final config?) {
+        runtime.update(const LibraryName(['main']), config.library);
+        dynamicContent.updateAll(Map<String, Object>.from(config.data));
+        cartMessage.value = null;
       }
       return null;
-    }, [widgetSnapshot.data]);
-
-    useEffect(() {
-      if (productsSnapshot.data case final products?) {
-        if (currentIndex.value < products.length) {
-          data.updateAll(Map<String, Object>.from(products[currentIndex.value]));
-        }
-      }
-      return null;
-    }, [productsSnapshot.data, currentIndex.value]);
-
-    final isLoading = widgetSnapshot.connectionState == ConnectionState.waiting ||
-        productsSnapshot.connectionState == ConnectionState.waiting;
-
-    final error = widgetSnapshot.error ?? productsSnapshot.error;
-
-    if (error != null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text(_pageTitle),
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.cloud_off, size: 48, color: Theme.of(context).colorScheme.error),
-                const SizedBox(height: 12),
-                Text(error.toString(), textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: () => retryCount.value++,
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text(_retryLabel),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    final products = productsSnapshot.data ?? const [];
+    }, [screenSnapshot.data]);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(_pageTitle),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_sectionTitle, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Text(_sectionSubtitle, style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 4),
-            _SourceRow(widgetName: _widgetSource),
-            const SizedBox(height: 12),
-            RemoteWidget(
-              runtime: runtime,
-              widget: const FullyQualifiedWidgetName(LibraryName(['main']), 'root'),
-              data: data,
-              onEvent: (name, args) {
-                if (name == _addToCartEvent && currentIndex.value < products.length) {
-                  final productName = products[currentIndex.value]['name'] ?? '';
-                  cartMessage.value = '$productName$_cartAddedSuffix';
-                }
-              },
-            ),
+      body: switch (screenSnapshot) {
+        AsyncSnapshot(hasError: true, :final error?) => _ErrorBody(
+            message: error.toString(),
+            onRetry: () => fetchCount.value++,
+          ),
+        AsyncSnapshot(connectionState: ConnectionState.waiting, data: null) =>
+          const Center(child: CircularProgressIndicator()),
+        AsyncSnapshot(:final data?) => _ScreenBody(
+            runtime: runtime,
+            dynamicContent: dynamicContent,
+            config: data,
+            cartMessage: cartMessage.value,
+            onRefetch: () => fetchCount.value++,
+            onEvent: (name, args) {
+              if (name == _addToCartEvent) {
+                final productName = screenSnapshot.data?.data['name'] ?? '';
+                cartMessage.value = '$productName$_cartAddedSuffix';
+              }
+            },
+          ),
+        _ => const Center(child: CircularProgressIndicator()),
+      },
+    );
+  }
+}
+
+class _ScreenBody extends StatelessWidget {
+  const _ScreenBody({
+    required this.runtime,
+    required this.dynamicContent,
+    required this.config,
+    required this.cartMessage,
+    required this.onRefetch,
+    required this.onEvent,
+  });
+
+  final Runtime runtime;
+  final DynamicContent dynamicContent;
+  final ScreenConfig config;
+  final String? cartMessage;
+  final VoidCallback onRefetch;
+  final RemoteEventHandler onEvent;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _VariantBadge(config: config),
+          const SizedBox(height: 12),
+          RemoteWidget(
+            runtime: runtime,
+            widget: const FullyQualifiedWidgetName(LibraryName(['main']), 'root'),
+            data: dynamicContent,
+            onEvent: onEvent,
+          ),
+          const SizedBox(height: 16),
+          if (cartMessage case final msg?) ...[
+            _CartBanner(message: msg),
             const SizedBox(height: 16),
-            if (cartMessage.value case final msg?) _CartBanner(message: msg),
-            const SizedBox(height: 16),
-            Text(_switchSectionLabel, style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(height: 8),
-            for (int i = 0; i < products.length; i++)
-              _ProductTile(
-                product: products[i],
-                isSelected: currentIndex.value == i,
-                onTap: () {
-                  currentIndex.value = i;
-                  cartMessage.value = null;
-                },
-              ),
           ],
-        ),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onRefetch,
+              icon: const Icon(Icons.refresh),
+              label: const Text(_refetchLabel),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _SourceRow extends StatelessWidget {
-  const _SourceRow({required this.widgetName});
-  final String widgetName;
+class _VariantBadge extends StatelessWidget {
+  const _VariantBadge({required this.config});
+  final ScreenConfig config;
 
   @override
   Widget build(BuildContext context) {
-    final widgetUrl = '${ServerConfig.baseUrl}/widgets/$widgetName';
-    final dataUrl = '${ServerConfig.baseUrl}/data/products';
+    final screenUrl = '${ServerConfig.baseUrl}/screen/$_screenName';
+    final widgetUrl = '${ServerConfig.baseUrl}/widgets/${config.widgetName}';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _UrlChip(url: widgetUrl),
+        Row(
+          children: [
+            Icon(Icons.swap_horiz, size: 14, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 4),
+            Text(
+              'widget: ${config.widgetName}',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 2),
-        _UrlChip(url: dataUrl),
+        _UrlRow(url: screenUrl),
+        _UrlRow(url: widgetUrl),
       ],
     );
   }
 }
 
-class _UrlChip extends StatelessWidget {
-  const _UrlChip({required this.url});
+class _UrlRow extends StatelessWidget {
+  const _UrlRow({required this.url});
   final String url;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(Icons.cloud_download_outlined, size: 14, color: Theme.of(context).colorScheme.outline),
+        Icon(Icons.cloud_download_outlined, size: 12, color: Theme.of(context).colorScheme.outline),
         const SizedBox(width: 4),
         Text(url, style: Theme.of(context).textTheme.labelSmall),
       ],
@@ -203,35 +197,30 @@ class _CartBanner extends StatelessWidget {
   }
 }
 
-class _ProductTile extends StatelessWidget {
-  const _ProductTile({
-    required this.product,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final Map<String, String> product;
-  final bool isSelected;
-  final VoidCallback onTap;
+class _ErrorBody extends StatelessWidget {
+  const _ErrorBody({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-            color: isSelected
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.outline,
-          ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off, size: 48, color: Theme.of(context).colorScheme.error),
+            const SizedBox(height: 12),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text(_retryLabel),
+            ),
+          ],
         ),
-        selected: isSelected,
-        title: Text(product['name'] ?? ''),
-        subtitle: Text('¥${product['price'] ?? ''}'),
-        trailing: Text(product['badge'] ?? ''),
-        onTap: onTap,
       ),
     );
   }
