@@ -10,30 +10,39 @@ widget root = Card(
       Container(
         color: 0xFFFFF9C4,
         child: Padding(
-          padding: {left: 12.0, top: 8.0, right: 12.0, bottom: 8.0},
+          padding: {left: 12.0, top: 10.0, right: 12.0, bottom: 10.0},
           child: Row(
             children: [
               Icon(icon: 0xe838, size: 16.0, color: 0xFFF9A825),
-              SizedBox(width: 4.0),
-              Text(text: "おすすめ商品"),
+              SizedBox(width: 6.0),
+              Text(
+                text: "おすすめ商品",
+                style: {fontSize: 13.0, fontWeight: "bold", color: 0xFFF57F17},
+              ),
             ],
           ),
         ),
       ),
       Container(
-        color: 0xFFE8F5E9,
+        color: 0xFFFBE9E7,
         child: Padding(
-          padding: {left: 16.0, top: 24.0, right: 16.0, bottom: 24.0},
+          padding: {left: 16.0, top: 20.0, right: 16.0, bottom: 20.0},
           child: Row(
             mainAxisAlignment: "spaceBetween",
             children: [
-              Icon(icon: 0xe1bc, size: 64.0, color: 0xFF2E7D32),
+              Icon(icon: 0xe56c, size: 64.0, color: 0xFFBF360C),
               Column(
                 crossAxisAlignment: "end",
                 children: [
-                  Text(text: data.badge),
-                  SizedBox(height: 4.0),
-                  Text(text: ["評価: ", data.rating]),
+                  Text(
+                    text: data.badge,
+                    style: {fontSize: 12.0, color: 0xFFBF360C},
+                  ),
+                  SizedBox(height: 6.0),
+                  Text(
+                    text: ["評価: ", data.rating],
+                    style: {fontSize: 12.0},
+                  ),
                 ],
               ),
             ],
@@ -41,22 +50,31 @@ widget root = Card(
         ),
       ),
       Padding(
-        padding: {left: 16.0, top: 12.0, right: 16.0, bottom: 4.0},
-        child: Text(text: data.name),
+        padding: {left: 16.0, top: 14.0, right: 16.0, bottom: 2.0},
+        child: Text(
+          text: data.name,
+          style: {fontSize: 18.0, fontWeight: "bold"},
+        ),
       ),
       Padding(
-        padding: {left: 16.0, top: 0.0, right: 16.0, bottom: 4.0},
-        child: Text(text: data.brand),
+        padding: {left: 16.0, top: 2.0, right: 16.0, bottom: 10.0},
+        child: Text(
+          text: data.brand,
+          style: {fontSize: 12.0, color: 0xFF757575},
+        ),
       ),
       Padding(
-        padding: {left: 16.0, top: 0.0, right: 16.0, bottom: 16.0},
+        padding: {left: 16.0, top: 0.0, right: 16.0, bottom: 18.0},
         child: Row(
           mainAxisAlignment: "spaceBetween",
           children: [
-            Text(text: ["¥", data.price]),
+            Text(
+              text: ["¥", data.price],
+              style: {fontSize: 20.0, fontWeight: "bold", color: 0xFFBF360C},
+            ),
             ElevatedButton(
               onPressed: event "add_to_cart" {productId: data.id},
-              child: Text(text: "カートに追加"),
+              child: Text(text: "注文する"),
             ),
           ],
         ),

@@ -26,9 +26,9 @@ type screenResponse struct {
 }
 
 var products = []product{
-	{ID: "p001", Name: "モイスチャライジングクリーム", Brand: "スキンケアブランドA", Price: "3,200", Rating: "★★★★☆", Badge: "ベストセラー"},
-	{ID: "p002", Name: "ビタミンCセラム", Brand: "スキンケアブランドB", Price: "5,800", Rating: "★★★★★", Badge: "新商品"},
-	{ID: "p003", Name: "サンスクリーンSPF50", Brand: "スキンケアブランドC", Price: "2,500", Rating: "★★★☆☆", Badge: "セール中"},
+	{ID: "p001", Name: "特製醤油ラーメン", Brand: "ラーメン専門店 一番亭", Price: "980", Rating: "★★★★★", Badge: "人気No.1"},
+	{ID: "p002", Name: "トロサーモン握り", Brand: "寿司処 まぐろ屋", Price: "1,200", Rating: "★★★★☆", Badge: "本日のおすすめ"},
+	{ID: "p003", Name: "バターチキンカレー", Brand: "スパイス食堂 カリー", Price: "850", Rating: "★★★☆☆", Badge: "ランチセット"},
 }
 
 // screenVariants は画面ごとのバリアント定義。

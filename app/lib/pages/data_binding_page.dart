@@ -7,7 +7,7 @@ import 'package:rfw_sample/server/rfw_client.dart';
 const _pageTitle = 'Data Binding';
 const _screenName = 'product';
 const _addToCartEvent = 'add_to_cart';
-const _cartAddedSuffix = ' をカートに追加しました';
+const _cartAddedSuffix = ' を注文しました';
 const _refetchLabel = 'サーバーに再取得';
 const _retryLabel = '再試行';
 

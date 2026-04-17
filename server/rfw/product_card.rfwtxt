@@ -8,19 +8,25 @@ widget root = Card(
     crossAxisAlignment: "start",
     children: [
       Container(
-        color: 0xFFE3F2FD,
+        color: 0xFFFFF3E0,
         child: Padding(
-          padding: {left: 16.0, top: 24.0, right: 16.0, bottom: 24.0},
+          padding: {left: 16.0, top: 20.0, right: 16.0, bottom: 20.0},
           child: Row(
             mainAxisAlignment: "spaceBetween",
             children: [
-              Icon(icon: 0xe1bc, size: 64.0, color: 0xFF1565C0),
+              Icon(icon: 0xe56c, size: 56.0, color: 0xFFBF360C),
               Column(
                 crossAxisAlignment: "end",
                 children: [
-                  Text(text: data.badge),
+                  Text(
+                    text: data.badge,
+                    style: {fontSize: 12.0, color: 0xFFBF360C},
+                  ),
                   SizedBox(height: 4.0),
-                  Text(text: ["評価: ", data.rating]),
+                  Text(
+                    text: ["評価: ", data.rating],
+                    style: {fontSize: 12.0},
+                  ),
                 ],
               ),
             ],
@@ -28,22 +34,31 @@ widget root = Card(
         ),
       ),
       Padding(
-        padding: {left: 16.0, top: 12.0, right: 16.0, bottom: 4.0},
-        child: Text(text: data.name),
+        padding: {left: 16.0, top: 12.0, right: 16.0, bottom: 2.0},
+        child: Text(
+          text: data.name,
+          style: {fontSize: 16.0, fontWeight: "bold"},
+        ),
       ),
       Padding(
-        padding: {left: 16.0, top: 0.0, right: 16.0, bottom: 4.0},
-        child: Text(text: data.brand),
+        padding: {left: 16.0, top: 2.0, right: 16.0, bottom: 8.0},
+        child: Text(
+          text: data.brand,
+          style: {fontSize: 12.0, color: 0xFF757575},
+        ),
       ),
       Padding(
         padding: {left: 16.0, top: 0.0, right: 16.0, bottom: 16.0},
         child: Row(
           mainAxisAlignment: "spaceBetween",
           children: [
-            Text(text: ["¥", data.price]),
+            Text(
+              text: ["¥", data.price],
+              style: {fontSize: 18.0, fontWeight: "bold", color: 0xFFBF360C},
+            ),
             ElevatedButton(
               onPressed: event "add_to_cart" {productId: data.id},
-              child: Text(text: "カートに追加"),
+              child: Text(text: "注文する"),
             ),
           ],
         ),
