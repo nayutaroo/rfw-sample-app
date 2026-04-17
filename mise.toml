@@ -1,0 +1,30 @@
+[tools]
+flutter = "3.41.5-stable"
+
+[tasks.install]
+description = "依存パッケージをインストール"
+run = "flutter pub get"
+
+[tasks.run]
+description = "アプリを起動"
+run = "flutter run"
+
+[tasks.analyze]
+description = "静的解析を実行"
+run = "flutter analyze"
+
+[tasks.test]
+description = "テストを実行"
+run = "flutter test"
+
+[tasks.format]
+description = "コードをフォーマット"
+run = "dart format lib/"
+
+[tasks.build-ios]
+description = "iOS向けにビルド"
+run = "flutter build ios --release"
+
+[tasks.build-android]
+description = "Android向けにビルド"
+run = "flutter build apk --release"
