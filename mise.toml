@@ -4,31 +4,31 @@ go = "1.25.8"
 
 [tasks.install]
 description = "依存パッケージをインストール"
-run = "flutter pub get"
+run = "cd app && flutter pub get"
 
 [tasks.run]
 description = "アプリを起動"
-run = "flutter run"
+run = "cd app && flutter run"
 
 [tasks.analyze]
 description = "静的解析を実行"
-run = "flutter analyze"
+run = "cd app && flutter analyze"
 
 [tasks.test]
 description = "テストを実行"
-run = "flutter test"
+run = "cd app && flutter test"
 
 [tasks.format]
 description = "コードをフォーマット"
-run = "dart format lib/"
+run = "cd app && dart format lib/"
 
 [tasks.build-ios]
 description = "iOS向けにビルド"
-run = "flutter build ios --release"
+run = "cd app && flutter build ios --release"
 
 [tasks.build-android]
 description = "Android向けにビルド"
-run = "flutter build apk --release"
+run = "cd app && flutter build apk --release"
 
 [tasks."generate:rfw"]
 description = ".rfwtxt をバイナリ .rfw に変換"

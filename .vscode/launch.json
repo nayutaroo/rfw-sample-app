@@ -5,21 +5,24 @@
       "name": "Debug",
       "request": "launch",
       "type": "dart",
-      "program": "lib/main.dart",
+      "program": "${workspaceFolder}/app/lib/main.dart",
+      "cwd": "${workspaceFolder}/app",
       "flutterMode": "debug"
     },
     {
       "name": "Profile",
       "request": "launch",
       "type": "dart",
-      "program": "lib/main.dart",
+      "program": "${workspaceFolder}/app/lib/main.dart",
+      "cwd": "${workspaceFolder}/app",
       "flutterMode": "profile"
     },
     {
       "name": "Release",
       "request": "launch",
       "type": "dart",
-      "program": "lib/main.dart",
+      "program": "${workspaceFolder}/app/lib/main.dart",
+      "cwd": "${workspaceFolder}/app",
       "flutterMode": "release"
     }
   ]
